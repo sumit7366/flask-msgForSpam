@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Chat Application</h1>
+        <div class="chat-box" id="chat-box">
+            {% for message in chat_history %}
+            <div class="message">
+                <span class="username">{{ message.username }}:</span>
+                <span class="message-text">{{ message.message }}</span>
+                <span class="timestamp">{{ message.timestamp }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="message-form">
+            <input type="text" id="username" placeholder="Your name" value="Anonymous">
+            <input type="text" id="message-input" placeholder="Type your message here...">
+            <button id="send-button">Send</button>
+        </div>
+        
+        <div id="warning-message" class="warning"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Function to scroll chat to bottom
+            function scrollToBottom() {
+                $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+            }
+            
+            // Function to add a message to the chat box
+            function addMessage(username, message, timestamp) {
+                const messageHtml = `
+                    <div class="message">
+                        <span class="username">${username}:</span>
+                        <span class="message-text">${message}</span>
+                        <span class="timestamp">${timestamp}</span>
+                    </div>
+                `;
+                $('#chat-box').append(messageHtml);
+                scrollToBottom();
+            }
+            
+            // Load messages periodically
+            function loadMessages() {
+                $.get('/get_messages', function(data) {
+                    // In a real app, you would update only new messages
+                    // For simplicity, we're just reloading all
+                });
+            }
+            
+            // Set interval to load new messages every 2 seconds
+            setInterval(loadMessages, 2000);
+            
+            // Send message when button is clicked
+            $('#send-button').click(sendMessage);
+            
+            // Send message when Enter is pressed
+            $('#message-input').keypress(function(e) {
+                if (e.which === 13) {  // Enter key
+                    sendMessage();
+                }
+            });
+            
+            function sendMessage() {
+                const username = $('#username').val();
+                const message = $('#message-input').val();
+                
+                if (message.trim() === '') return;
+                
+                $.post('/send_message', {
+                    username: username,
+                    message: message
+                }, function(data) {
+                    if (data.status === 'success') {
+                        addMessage(data.username, data.message, data.timestamp);
+                        $('#message-input').val('');
+                        $('#warning-message').text('').hide();
+                    } else if (data.status === 'warning') {
+                        $('#warning-message').text(data.message).show();
+                        setTimeout(function() {
+                            $('#warning-message').fadeOut();
+                        }, 3000);
+                    }
+                }).fail(function() {
+                    alert('Error sending message');
+                });
+            }
+            
+            // Initial scroll to bottom
+            scrollToBottom();
+        });
+    </script>
+</body>
+</html>
